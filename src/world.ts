@@ -4,9 +4,11 @@ import { Components } from './components';
 import { Entity } from './entity';
 import { System, Systems } from './systems';
 import { Layer, SpatialStore, Zone } from './space';
+import { IDManager } from './helpers/id';
 
 export class World {
   private entities = new Map<number, Entity>();
+  private idmanager = new IDManager();
   private systems: System<unknown>[] = [];
   private queues = new Map<Systems, unknown[]>();
   private tick = 0;
@@ -39,7 +41,7 @@ export class World {
   add = {
     system: <I>(s: System<I>) => {
       if (!s.enabled) s.enabled = true;
-      if (!s.priority) s.priority = 0;
+      if (!s.priority) s.priority = 100;
       if (!s.startAt) s.startAt = 0;
       if (!s.every) s.every = 1;
 
@@ -54,7 +56,7 @@ export class World {
     },
 
     entity: () => {
-      const eid = this.private.getNewEntityeid();
+      const eid = this.idmanager.newId();
       const entity = new Entity({ eid, world: this, space: this.space });
       this.entities.set(eid, entity);
       return entity;
@@ -62,11 +64,9 @@ export class World {
   };
 
   system = {
-    input: {
-      enqueue: <I>(s: System<I>, input: I) => {
-        const queue = this.queues.get(s.name) as I[];
-        queue.push(input);
-      },
+    enqueueInput: <I>(s: System<I>, input: I) => {
+      const queue = this.queues.get(s.name) as I[];
+      queue.push(input);
     },
 
     enable: (s: System<unknown>) => {
@@ -97,7 +97,7 @@ export class World {
       this.entities.delete(eid);
 
       // Recycle the eid
-      this.private.recycledEids.push(eid);
+      this.idmanager.recycleId(eid);
     },
 
     system: (s: System<unknown>) => {
@@ -109,8 +109,7 @@ export class World {
     this.entities.clear();
     this.index.tag.clear();
     this.index.component.clear();
-    this.private.nextEid = 1;
-    this.private.recycledEids = [];
+    this.idmanager.reset();
     this.tick = 0;
     this.queues.clear();
     this.systems = [];
@@ -247,16 +246,5 @@ export class World {
       }
       return result;
     },
-
-    getNewEntityeid: (): number => {
-      if (this.private.recycledEids.length > 0) {
-        return this.private.recycledEids.shift()!;
-      } else {
-        // Return the next sequential eid
-        return this.private.nextEid++;
-      }
-    },
-    nextEid: 2,
-    recycledEids: [1],
   };
 }

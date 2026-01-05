@@ -6,7 +6,7 @@ import { Position, SpatialStore } from './space';
 export class Entity {
   private world: World;
   private space: SpatialStore;
-  id: number;
+  readonly id: number;
   private components = new Map<Components, unknown>();
   private tags = new Set<Tags>();
 
